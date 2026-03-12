@@ -58,6 +58,11 @@ setup(
         'Operating System :: OS Independent',
     ],
     install_requires=basic_requirements,
+    entry_points={
+        'console_scripts': [
+            'linkedin-scraper=linkedin_scraper.cli:main',
+        ],
+    },
     include_package_data=True,
     project_urls={
         'Bug Reports': 'https://github.com/joeyism/linkedin_scraper/issues',
