@@ -17,23 +17,31 @@ from ..core import (
     retry_async,
 )
 from ..core.exceptions import AuthenticationError, ScrapingError
+from ..core.throttle import HumanBehavior, ThrottleConfig
 
 logger = logging.getLogger(__name__)
 
 
 class BaseScraper:
     """Base class with common scraping functionality."""
-    
-    def __init__(self, page: Page, callback: Optional[ProgressCallback] = None):
+
+    def __init__(
+        self,
+        page: Page,
+        callback: Optional[ProgressCallback] = None,
+        throttle_config: Optional[ThrottleConfig] = None,
+    ):
         """
         Initialize base scraper.
-        
+
         Args:
             page: Playwright page object
             callback: Progress callback (defaults to SilentCallback)
+            throttle_config: Throttle/human-behavior config (defaults to ThrottleConfig())
         """
         self.page = page
         self.callback = callback or SilentCallback()
+        self.human = HumanBehavior(throttle_config)
     
     async def ensure_logged_in(self) -> None:
         """
@@ -156,16 +164,26 @@ class BaseScraper:
     async def navigate_and_wait(self, url: str, wait_until: str = 'domcontentloaded', timeout: int = 60000) -> None:
         """
         Navigate to URL and wait for page load.
-        
+
+        Enforces rate limits and adds a randomized human-like delay before
+        each navigation.  After loading, records the request and optionally
+        simulates mouse movement / reading behaviour.
+
         Args:
             url: URL to navigate to
             wait_until: Wait condition (domcontentloaded, networkidle, load)
             timeout: Timeout in milliseconds (default: 60000 = 60s)
         """
+        # Pre-navigation: enforce caps & random delay
+        await self.human.pre_navigation()
+
         logger.info(f"Navigating to: {url}")
-        # Use type: ignore to bypass strict typing
         await self.page.goto(url, wait_until=wait_until, timeout=timeout)  # type: ignore
         await self.check_rate_limit()
+
+        # Post-navigation: record request & emulate human reading
+        self.human.post_navigation()
+        await self.human.emulate_page_read(self.page)
     
     async def extract_list_items(
         self,
