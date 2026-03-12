@@ -29,6 +29,7 @@ from .utils import (
     handle_modal_close,
     is_page_loaded
 )
+from .throttle import ThrottleConfig, RequestThrottle, HumanBehavior
 
 __all__ = [
     # Browser
@@ -58,4 +59,8 @@ __all__ = [
     'click_see_more_buttons',
     'handle_modal_close',
     'is_page_loaded',
+    # Throttle / Human Behavior
+    'ThrottleConfig',
+    'RequestThrottle',
+    'HumanBehavior',
 ]

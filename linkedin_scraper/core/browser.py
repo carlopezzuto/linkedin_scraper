@@ -21,22 +21,25 @@ class BrowserManager:
         slow_mo: int = 0,
         viewport: Optional[Dict[str, int]] = None,
         user_agent: Optional[str] = None,
+        proxy: Optional[str] = None,
         **launch_options: Any
     ):
         """
         Initialize browser manager.
-        
+
         Args:
             headless: Run browser in headless mode
             slow_mo: Slow down operations by specified milliseconds
             viewport: Browser viewport size (default: 1280x720)
             user_agent: Custom user agent string
+            proxy: Proxy server URL (e.g. "http://user:pass@host:port")
             **launch_options: Additional Playwright launch options
         """
         self.headless = headless
         self.slow_mo = slow_mo
         self.viewport = viewport or {"width": 1280, "height": 720}
         self.user_agent = user_agent
+        self.proxy = proxy
         self.launch_options = launch_options
         
         self._playwright: Optional[Playwright] = None
@@ -58,13 +61,20 @@ class BrowserManager:
         """Start Playwright and launch browser."""
         try:
             self._playwright = await async_playwright().start()
-            
+
+            # Build launch kwargs
+            launch_kwargs: Dict[str, Any] = {
+                "headless": self.headless,
+                "slow_mo": self.slow_mo,
+                **self.launch_options,
+            }
+
+            if self.proxy:
+                launch_kwargs["proxy"] = {"server": self.proxy}
+                logger.info(f"Using proxy: {self.proxy}")
+
             # Launch browser
-            self._browser = await self._playwright.chromium.launch(
-                headless=self.headless,
-                slow_mo=self.slow_mo,
-                **self.launch_options
-            )
+            self._browser = await self._playwright.chromium.launch(**launch_kwargs)
             
             logger.info(f"Browser launched (headless={self.headless})")
             

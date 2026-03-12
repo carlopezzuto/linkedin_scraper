@@ -11,6 +11,9 @@ from .core import (
     is_logged_in,
     wait_for_manual_login,
     load_credentials_from_env,
+    # Throttle / Human Behavior
+    ThrottleConfig,
+    HumanBehavior,
     # Exceptions
     LinkedInScraperException,
     AuthenticationError,
@@ -64,6 +67,9 @@ __all__ = [
     "is_logged_in",
     "wait_for_manual_login",
     "load_credentials_from_env",
+    # Throttle / Human Behavior
+    "ThrottleConfig",
+    "HumanBehavior",
     # Scrapers
     "PersonScraper",
     "CompanyScraper",
