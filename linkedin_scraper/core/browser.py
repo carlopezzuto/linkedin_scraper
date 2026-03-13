@@ -78,9 +78,14 @@ class BrowserManager:
             
             logger.info(f"Browser launched (headless={self.headless})")
             
-            # Create context
+            # Create context (force English to prevent
+            # multi-language page rendering)
             context_options: Dict[str, Any] = {
                 "viewport": self.viewport,
+                "locale": "en-US",
+                "extra_http_headers": {
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
             }
             
             if self.user_agent:
