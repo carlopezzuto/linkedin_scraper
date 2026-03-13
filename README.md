@@ -166,6 +166,97 @@ except ProfileNotFoundError:
     print("Profile not found or private")
 ```
 
+## Agent and skill integration
+
+This fork is designed to work with AI agent frameworks. There are three integration levels:
+
+### 1. CLI (simplest, used by Claude Code agents)
+
+Agents call the CLI via shell and get JSON back. This is how the [recruiting toolkit](https://github.com/carlopezzuto/recruiting) agents use it:
+
+```bash
+# lead-researcher agent: build a candidate dossier
+linkedin-scraper person "https://www.linkedin.com/in/someone/" | jq .
+
+# senior-sourcing-specialist agent: company intelligence
+linkedin-scraper company "https://www.linkedin.com/company/acme/" | jq .
+
+# market-analyst agent: competitive job market scan
+linkedin-scraper jobs "Account Executive" -l "Berlin" -n 10 --details
+
+# Batch research with throttling (5+ lookups)
+linkedin-scraper person "https://linkedin.com/in/candidate1/" \
+  --min-delay 3 --max-delay 8 --max-per-hour 30
+```
+
+In a Claude Code agent definition (`.claude/agents/lead-researcher.md`), reference the CLI like this:
+
+```markdown
+## LinkedIn data
+
+Use `linkedin-scraper person "<url>"` for direct profile data.
+For batch research (5+ candidates), add: `--min-delay 3 --max-delay 8 --max-per-hour 30`
+Output is JSON to stdout. Parse with jq or Python.
+```
+
+### 2. LinkedInAgent facade (Python, for custom agents)
+
+The `LinkedInAgent` class wraps all scrapers behind a single async interface that returns plain dicts (JSON-serializable):
+
+```python
+from linkedin_scraper import LinkedInAgent
+
+async def research_candidate(url: str) -> dict:
+    agent = LinkedInAgent(session="linkedin_session.json")
+    async with agent:
+        return await agent.scrape_person(url)
+
+# Available methods:
+# agent.scrape_person(url)       -> dict
+# agent.scrape_company(url)      -> dict
+# agent.scrape_job(url)          -> dict
+# agent.search_jobs(kw, loc, n)  -> list[str]  (URLs)
+# agent.scrape_company_posts(url, limit) -> list[dict]
+```
+
+### 3. Tool definitions (for function-calling LLMs)
+
+`LinkedInAgent.tool_definitions()` returns Claude/OpenAI-compatible tool schemas. Wire them into your agent's tool loop:
+
+```python
+import anthropic
+from linkedin_scraper import LinkedInAgent
+
+client = anthropic.Anthropic()
+agent = LinkedInAgent(session="linkedin_session.json")
+
+async def run():
+    async with agent:
+        # Pass tool definitions to the LLM
+        tools = agent.tool_definitions()
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            tools=tools,
+            messages=[{
+                "role": "user",
+                "content": "Research the founder of Acme Corp on LinkedIn"
+            }],
+        )
+
+        # When the LLM calls a tool, dispatch it
+        for block in response.content:
+            if block.type == "tool_use":
+                result = await agent.dispatch_tool(
+                    block.name, block.input
+                )
+                # Send result back to LLM as tool_result
+```
+
+### CLAUDE.md for repo-level agent instructions
+
+The included `CLAUDE.md` tells Claude Code how to use the CLI when working inside this repo. If you use this scraper as part of a larger project, copy the relevant sections into your project's agent definitions.
+
 ## Known limitations
 
 - LinkedIn serves detail pages (experience, certifications, languages) in **random languages** per navigation, ignoring the `Accept-Language` header. The parser handles this via language-agnostic patterns, but dates and locations may appear in the served locale (e.g., "févr. 2026" instead of "Feb 2026").
