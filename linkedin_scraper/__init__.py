@@ -42,6 +42,9 @@ from .callbacks import (
     MultiCallback,
 )
 
+# Agent facade
+from .agent import LinkedInAgent
+
 # Models
 from .models import (
     Person,
@@ -70,6 +73,8 @@ __all__ = [
     # Throttle / Human Behavior
     "ThrottleConfig",
     "HumanBehavior",
+    # Agent
+    "LinkedInAgent",
     # Scrapers
     "PersonScraper",
     "CompanyScraper",
